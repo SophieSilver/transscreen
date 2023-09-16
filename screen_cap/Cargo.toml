@@ -1,0 +1,13 @@
+[package]
+name = "screen_cap"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+parking_lot = "0.12.1"
+scrap = "0.5.0"
+thiserror = "1.0.48"
+utils = { version = "0.1.0", path = "../utils" }
+x264 = "0.5.0"

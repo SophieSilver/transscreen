@@ -1,0 +1,21 @@
+[workspace]
+
+members = [
+    "app",
+    "screen_cap",
+    "utils",
+]
+
+[profile.release]
+lto = true
+
+[profile.release-with-debug]
+inherits = "release"
+incremental = false
+lto = true
+debug = true
+
+[profile.release-no-lto]
+inherits = "release"
+incremental = false
+lto = false
