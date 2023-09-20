@@ -87,11 +87,7 @@ impl ThreadedCapturer {
         let error_iter = self.thread_loop.work_try_iter().filter_map(|message| {
             message.err().filter(|e| {
                 // don't count skipped frames
-                if let FrameError::Error(_) = e {
-                    true
-                } else {
-                    false
-                }
+                matches!(e, FrameError::Error(_))
             })
         });
 

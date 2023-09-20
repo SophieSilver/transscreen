@@ -20,7 +20,6 @@ struct RecordWorker {
     encoder: Encoder,
     width: i32,
     height: i32,
-    // TODO: change the data structure
     data_buf: EncodedBuffer,
     timebase: f64,
     record_start_time: Instant,
@@ -154,7 +153,8 @@ impl Recorder {
         let data_buf_view = data_buf.view();
 
         // getting the headers from the thread with the encoder
-        let headers_dest: Arc<(Mutex<Option<Box<[u8]>>>, Condvar)> = Arc::default();
+        type MutexHeaders = Mutex<Option<Box<[u8]>>>;
+        let headers_dest: Arc<(MutexHeaders, Condvar)> = Arc::default();
         let headers_dest_cloned = headers_dest.clone();
 
         let worker_factory = move || {
@@ -178,7 +178,7 @@ impl Recorder {
                 encoder,
                 width,
                 height,
-                data_buf: data_buf,
+                data_buf,
                 timebase,
                 record_start_time: Instant::now(),
                 buffered_frames,
@@ -222,10 +222,7 @@ impl Recorder {
 
     pub fn block_until_next_flush(&self) -> Result<(), RecordError> {
         for i in self.thread_loop.work_iter() {
-            match i? {
-                EncodeStatus::Flushed => return Ok(()),
-                _ => (),
-            }
+            if let EncodeStatus::Flushed = i? { return Ok(()) }
         }
         // technically unreachable unless something nasty happends
         Ok(())
