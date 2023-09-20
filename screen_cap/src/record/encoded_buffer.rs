@@ -1,11 +1,11 @@
 use std::{sync::Arc, ops::Deref};
 
-use parking_lot::RwLock;
+use parking_lot::{RwLock, RwLockReadGuard};
 use utils::contiguous::{RingBuffer, GrowableBuffer, self};
 
 #[derive(Debug)]
 pub struct Metadata {
-    
+    pub is_key: bool,
 }
 
 #[derive(Debug)]
@@ -46,6 +46,14 @@ impl EncodedBuffer {
         let buf = self.ring_buf.clone();
         EncodedBufferView { buf }
     }
+    
+    pub fn write_buf_len(&self) -> usize {
+        self.write_buf.len()
+    }
+    
+    pub fn write_buf_is_empty(&self) -> bool {
+        self.write_buf.is_empty()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -54,7 +62,19 @@ pub struct EncodedBufferView {
 }
 
 impl EncodedBufferView {
-    pub fn get(&self) -> impl Deref<Target = RingBuffer<Metadata>> + '_ {
-        self.buf.read()
+    pub fn get(&self) -> EncodedDataGuard<'_> {
+        EncodedDataGuard { inner: self.buf.read() }
+    }
+}
+
+pub struct EncodedDataGuard<'a> {
+    inner: RwLockReadGuard<'a, RingBuffer<Metadata>>,
+}
+
+impl Deref for EncodedDataGuard<'_> {
+    type Target = RingBuffer<Metadata>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }

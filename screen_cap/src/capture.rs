@@ -8,7 +8,7 @@ use utils::{
 use crate::frame::{FrameError, FrameGuard};
 
 // capturer that will be working in the ThreadLoop
-pub struct CaptureWorker {
+struct CaptureWorker {
     capturer: Capturer,
     frame_buf: MultiBuffer<Vec<u8>>,
 }
