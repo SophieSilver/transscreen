@@ -18,6 +18,10 @@ const FAST_DECODE: bool = true;
 const ZERO_LATENCY: bool = true;
 
 pub fn run() {
+    record_to_file();
+}
+
+fn record_to_file() {
     let display = Display::primary().unwrap();
     let width = display.width();
     let height = display.height();
@@ -44,7 +48,7 @@ pub fn run() {
     };
     
     let file = File::create("thing.h264").unwrap();
-    let mut file_buf = BufWriter::with_capacity(1 * 8 * 1024 * 1024, file);
+    let mut file_buf = BufWriter::with_capacity(8 * 1024 * 1024, file);
 
     let mut recorder = Recorder::new(capturer_settings, buffering_settings, encoder_settings);
     
