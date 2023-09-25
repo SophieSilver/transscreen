@@ -1,6 +1,6 @@
 use std::{sync::Arc, ops::Deref};
 
-use parking_lot::{RwLock, RwLockReadGuard};
+use parking_lot::{RwLock, RwLockReadGuard, lock_api::ArcRwLockReadGuard, RawRwLock};
 use utils::contiguous::{RingBuffer, GrowableBuffer, self};
 
 #[derive(Debug)]
@@ -65,15 +65,36 @@ impl EncodedBufferView {
     pub fn get(&self) -> EncodedDataGuard<'_> {
         EncodedDataGuard { inner: self.buf.read() }
     }
+    
+    pub fn get_arc(&self) -> ArcEncodedDataGuard {
+        ArcEncodedDataGuard { inner: self.buf.read_arc() }
+    }
 }
 
+type Guard<'a> = RwLockReadGuard<'a, RingBuffer<Metadata>>;
+
 pub struct EncodedDataGuard<'a> {
-    inner: RwLockReadGuard<'a, RingBuffer<Metadata>>,
+    inner: Guard<'a>,
 }
 
 impl Deref for EncodedDataGuard<'_> {
     type Target = RingBuffer<Metadata>;
 
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+type ArcGuard = ArcRwLockReadGuard<RawRwLock, RingBuffer<Metadata>>;
+
+#[derive(Debug)]
+pub struct ArcEncodedDataGuard {
+    inner: ArcGuard,
+}
+
+impl Deref for ArcEncodedDataGuard {
+    type Target = RingBuffer<Metadata>;
+    
     fn deref(&self) -> &Self::Target {
         &self.inner
     }

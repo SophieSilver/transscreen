@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-parking_lot = "0.12.1"
+parking_lot = { version = "0.12.1", features = ["send_guard", "arc_lock"] }
 scrap = "0.5.0"
 thiserror = "1.0.48"
 utils = { version = "0.1.0", path = "../utils" }

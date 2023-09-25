@@ -6,9 +6,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bytes = "1.5.0"
+futures = "0.3.28"
+hyper = { version = "0.14.27", features = ["full"] }
+hyper-tungstenite = "0.11.1"
+parking_lot = { version = "0.12.1", features = ["send_guard", "arc_lock"] }
 scrap = "0.5.0"
 screen_cap = { version = "0.1.0", path = "../screen_cap" }
 spin_sleep = "1.1.1"
 tokio = { version = "1.32.0", features = ["full"] }
+tower = { version = "0.4.13", features = ["full"] }
 utils = { version = "0.1.0", path = "../utils" }
 x264 = "0.5.0"

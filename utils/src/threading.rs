@@ -1,5 +1,5 @@
 use std::{
-    sync::mpsc::{self, Receiver, RecvError, RecvTimeoutError, Sender},
+    sync::mpsc::{self, Receiver, RecvError, RecvTimeoutError, Sender, SyncSender},
     thread::{self, JoinHandle},
     time::Duration,
 };
@@ -67,7 +67,7 @@ impl<W: ThreadWork> ThreadLoopWorker<W> {
 // this is here so we don't need to implement drop twice
 struct ThreadLoopInner<W: ThreadWork> {
     worker_join_handle: JoinHandle<()>,
-    tx: Sender<MessageToWorker>,
+    tx: SyncSender<MessageToWorker>,
     rx: Receiver<W::WorkResult>,
 }
 
@@ -89,7 +89,9 @@ impl<W: ThreadWork> ThreadLoopBuilder<W> {
         F: FnOnce() -> W,
         F: Send + 'static,
     {
-        let (tx, worker_rx) = mpsc::channel::<MessageToWorker>();
+        // technically there will only ever be 2 messages sent at most
+        // I'm just generous setting the value to 8
+        let (tx, worker_rx) = mpsc::sync_channel::<MessageToWorker>(8);
 
         let (worker_tx, rx) = mpsc::channel::<W::WorkResult>();
 

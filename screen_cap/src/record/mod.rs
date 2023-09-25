@@ -13,7 +13,9 @@ use x264::{Encoder, Image};
 
 use crate::{capture::ThreadedCapturer, frame::FrameError, record::encoded_buffer::Metadata};
 
-use self::encoded_buffer::{EncodedBuffer, EncodedBufferView, EncodedDataGuard};
+use self::encoded_buffer::{
+    ArcEncodedDataGuard, EncodedBuffer, EncodedBufferView, EncodedDataGuard,
+};
 
 struct RecordWorker {
     capturer: ThreadedCapturer,
@@ -56,6 +58,7 @@ impl RecordWorker {
         // actually encoding
         let elapsed = self.record_start_time.elapsed().as_secs_f64();
         let timestamp = (elapsed * self.timebase) as i64;
+
         let (data, picture) = self.encoder.encode(timestamp, image)?;
 
         // update the buffer
@@ -66,7 +69,7 @@ impl RecordWorker {
         if self.buffered_frames == 0 {
             // write flush is a bit more efficient since it immediately writes to the shared ring buffer
             self.data_buf.write_flush(data.entirety(), metadata)?;
-            
+
             Ok(EncodeStatus::Flushed)
         } else {
             // write into a local buffer
@@ -207,7 +210,8 @@ impl Recorder {
         }
     }
 
-    pub fn data_buffer(&mut self) -> Result<EncodedDataGuard<'_>, RecordError> {
+    #[inline]
+    pub fn data_buffer(&self) -> Result<EncodedDataGuard<'_>, RecordError> {
         // bubble up errors
         for i in self.thread_loop.work_try_iter() {
             i?;
@@ -216,15 +220,62 @@ impl Recorder {
         Ok(self.data_buf.get())
     }
 
+    #[inline]
+    pub fn data_buffer_arc(&self) -> Result<ArcEncodedDataGuard, RecordError> {
+        for i in self.thread_loop.work_try_iter() {
+            i?;
+        }
+
+        Ok(self.data_buf.get_arc())
+    }
+
+    /// Allows one to have read-only access to the encoded buffer
+    /// while not having access to the recorder itself.
+    ///
+    /// Useful when sharing the recorder across threads as
+    /// Recorder is not `Sync`
+    #[inline]
+    pub fn data_buffer_view(&self) -> EncodedBufferView {
+        self.data_buf.clone()
+    }
+
+    #[inline]
     pub fn headers(&self) -> &[u8] {
         &self.headers
     }
 
-    pub fn block_until_next_flush(&self) -> Result<(), RecordError> {
-        for i in self.thread_loop.work_iter() {
-            if let EncodeStatus::Flushed = i? { return Ok(()) }
+    #[inline]
+    pub fn wait_for_frame(&self) -> Result<EncodeStatus, RecordError> {
+        let backlog = self.thread_loop.work_try_iter();
+
+        if let Some(last_message) = backlog.last() {
+            return last_message;
         }
-        // technically unreachable unless something nasty happends
+
+        self.thread_loop.work_recv().unwrap()
+    }
+
+    #[inline]
+    pub fn block_until_next_flush(&self) -> Result<(), RecordError> {
+        let backlog = self.thread_loop.work_try_iter();
+
+        // iterate over the backlog
+        // propagate the first message and return Ok if one of the messages was a flush
+        let mut found_flush = false;
+        for i in backlog {
+            found_flush |= i? == EncodeStatus::Flushed;
+        }
+
+        if found_flush {
+            return Ok(());
+        }
+
+        for i in self.thread_loop.work_iter() {
+            if let EncodeStatus::Flushed = i? {
+                return Ok(());
+            }
+        }
+        // technically unreachable unless something nasty happens
         Ok(())
     }
 }
@@ -252,7 +303,7 @@ where
     pub timebase: f64,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EncodeStatus {
     Skipped,
     PreBuffered,
